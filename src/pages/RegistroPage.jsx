@@ -387,7 +387,7 @@ export default function RegistroPage({ toast }) {
 
       <div style={{marginBottom:28}}>
         <div style={{display:'inline-block',background:C.blueBg,border:`1px solid ${C.blueBorder}`,borderRadius:6,padding:'3px 10px',fontSize:10,color:C.blue,fontFamily:mono,fontWeight:700,letterSpacing:'0.06em',marginBottom:12}}>PRÁCTICAS PROFESIONALES</div>
-        <h1 style={{fontFamily:disp,fontSize:30,fontWeight:800,color:C.text,letterSpacing:-0.5,marginBottom:6}}>Registro de Estudiante</h1>
+        <h1 style={{fontFamily:disp,fontSize:20,fontWeight:600,color:C.text,letterSpacing:-0.5,marginBottom:6}}>Registro de Estudiante</h1>
         <p style={{color:C.muted,fontSize:13,fontFamily:mono,lineHeight:1.6}}>Completa todos los campos. Al finalizar recibirás tu carnet con código QR.</p>
       </div>
 
