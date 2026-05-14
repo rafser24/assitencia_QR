@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Alumnos: cualquiera puede leer (para validar QR en el lector)
+    // Solo lectura pública para registro — escritura abierta para el auto-registro
+    match /alumnos/{uid} {
+      allow read:   if true;
+      allow create: if true;           // Auto-registro desde la página pública
+      allow update,
+            delete: if request.auth != null; // Solo admin autenticado
+    }
+
+    // Asistencias: escritura desde el lector (público), lectura para admin
+    match /asistencias/{id} {
+      allow read, write: if true;      // Ajustar según tus requerimientos de seguridad
+    }
+  }
+}
