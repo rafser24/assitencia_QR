@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Users, ClipboardList, UserPlus, Trash2, RefreshCw, User, Mail, Phone, BookOpen, Edit3, Check, X, FileText } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Users, ClipboardList, UserPlus, Trash2, RefreshCw, User, Mail, Phone, BookOpen, Edit3, Check, X, FileText, Download, CreditCard } from 'lucide-react'
 import { addDays, format } from 'date-fns'
+import QRCode from 'qrcode'
 import { es } from 'date-fns/locale'
 import { useAttendanceLogic } from '../hooks/useAttendanceLogic'
 import { generarReportePDF } from '../services/pdfReport'
@@ -225,7 +226,7 @@ function ModalEditarDia({ alumno, diaNum, diaLabel, registro, onClose, onSaved, 
   )
 }
 
-function TablaAlumnos({ alumnos, asistenciasPorAlumno, logic, onSelectAlumno, onDelete, onUpdateAlumno, onEditarDia }) {
+function TablaAlumnos({ alumnos, asistenciasPorAlumno, logic, onSelectAlumno, onDelete, onUpdateAlumno, onEditarDia, onVerCarnet }) {
   const dias = [{num:2,label:'Mar'},{num:3,label:'Mié'},{num:4,label:'Jue'},{num:5,label:'Vie'}]
   const toDate = v => v instanceof Date ? v : new Date(v)
 
@@ -304,15 +305,180 @@ function TablaAlumnos({ alumnos, asistenciasPorAlumno, logic, onSelectAlumno, on
                 </td>
 
                 <td style={{padding:'10px 8px',textAlign:'center'}} onClick={e=>e.stopPropagation()}>
-                  <button onClick={()=>onDelete(alumno)} style={{background:C.redBg,border:`1px solid ${C.redBorder}`,borderRadius:6,padding:'4px 8px',color:C.red,cursor:'pointer'}}>
-                    <Trash2 size={12}/>
-                  </button>
+                  <div style={{display:'flex',gap:4,justifyContent:'center'}}>
+                    <button onClick={()=>onVerCarnet(alumno)} title="Ver carnet"
+                      style={{background:C.blueBg,border:`1px solid ${C.blueBorder}`,borderRadius:6,padding:'4px 8px',color:C.blue,cursor:'pointer'}}>
+                      <CreditCard size={12}/>
+                    </button>
+                    <button onClick={()=>onDelete(alumno)} title="Eliminar"
+                      style={{background:C.redBg,border:`1px solid ${C.redBorder}`,borderRadius:6,padding:'4px 8px',color:C.red,cursor:'pointer'}}>
+                      <Trash2 size={12}/>
+                    </button>
+                  </div>
                 </td>
               </tr>
             )
           })}
         </tbody>
       </table>
+    </div>
+  )
+}
+
+// ── Modal Carnet del alumno ──────────────────────────────────────────────────
+
+function ModalCarnet({ alumno, onClose }) {
+  const carnetRef = useRef(null)
+  const [qrDataUrl, setQrDataUrl] = useState(null)
+  const [loading, setLoading]     = useState(true)
+
+  const azulOscuro = '#2a5298'
+  const azulMedio  = '#3d6dbf'
+  const azulClaro  = '#6e9fd6'
+  const azulPastel = '#dce9f7'
+  const grisTexto  = '#2c3e50'
+  const grisLabel  = '#7f8c9a'
+
+  useEffect(() => {
+    if (alumno?.codigoQR) {
+      QRCode.toDataURL(alumno.codigoQR, {
+        width: 200, margin: 1,
+        color: { dark: '#000000', light: '#ffffff' },
+      })
+        .then(url => { setQrDataUrl(url); setLoading(false) })
+        .catch(() => setLoading(false))
+    } else { setLoading(false) }
+  }, [alumno])
+
+  const descargar = async () => {
+    if (!window.html2canvas) {
+      const s = document.createElement('script')
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
+      document.head.appendChild(s)
+      await new Promise(r => { s.onload = r })
+    }
+    const canvas = await window.html2canvas(carnetRef.current, {
+      scale: 3, useCORS: true, backgroundColor: '#f0f5ff', logging: false,
+    })
+    const link = document.createElement('a')
+    link.download = `carnet-${alumno.nie || alumno.uid}.png`
+    link.href = canvas.toDataURL('image/png')
+    link.click()
+  }
+
+  const IconNIE = () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={azulMedio} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/>
+    </svg>
+  )
+  const IconPerson = () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={azulMedio} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+    </svg>
+  )
+  const IconGrad = () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={azulMedio} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
+    </svg>
+  )
+  const IconCal = () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={azulMedio} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+    </svg>
+  )
+  const IconMail = () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={azulMedio} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+    </svg>
+  )
+
+  const campos = [
+    { icon: <IconNIE/>,    label: 'NIE:',            valor: alumno.nie || alumno.uid },
+    { icon: <IconPerson/>, label: 'Nombre(s):',       valor: alumno.nombre },
+    { icon: <IconPerson/>, label: 'Apellido(s):',     valor: alumno.apellido },
+    { icon: <IconGrad/>,   label: 'Carrera:',         valor: alumno.carrera },
+    { icon: <IconCal/>,    label: 'Ciclo Académico:', valor: alumno.ciclo },
+    { icon: <IconMail/>,   label: 'Correo:',          valor: alumno.email },
+  ]
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(45,53,97,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:20,overflowY:'auto'}}
+      onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:20,padding:'10px 0'}}>
+
+        {loading ? (
+          <div style={{color:'#fff',fontFamily:mono,fontSize:14}}>Generando carnet...</div>
+        ) : (
+          <>
+            {/* ── CARNET ── */}
+            <div ref={carnetRef} style={{width:340,fontFamily:"'Arial',sans-serif",borderRadius:18,overflow:'hidden',boxShadow:'0 24px 64px rgba(42,82,152,0.35)'}}>
+              {/* Header */}
+              <div style={{background:`linear-gradient(160deg,${azulOscuro} 0%,${azulMedio} 55%,${azulClaro} 100%)`,padding:'22px 24px 28px',position:'relative',overflow:'hidden',textAlign:'center'}}>
+                <div style={{position:'absolute',top:8,right:16,width:10,height:10,borderTop:'2px solid rgba(255,255,255,0.4)',borderRight:'2px solid rgba(255,255,255,0.4)'}}/>
+                <div style={{position:'absolute',top:14,right:30,width:6,height:6,borderRadius:'50%',border:'1.5px solid rgba(255,255,255,0.3)'}}/>
+                <div style={{position:'absolute',top:20,left:12,width:0,height:0,borderLeft:'5px solid transparent',borderRight:'5px solid transparent',borderBottom:'8px solid rgba(255,255,255,0.2)'}}/>
+                <div style={{position:'absolute',bottom:10,right:20,width:0,height:0,borderLeft:'4px solid transparent',borderRight:'4px solid transparent',borderTop:'7px solid rgba(255,255,255,0.15)'}}/>
+                <div style={{position:'absolute',bottom:0,left:0,right:0,height:20,background:'rgba(255,255,255,0.08)',borderRadius:'60% 60% 0 0'}}/>
+                <div style={{color:'rgba(255,255,255,0.92)',fontSize:10,fontWeight:700,letterSpacing:'0.18em',marginBottom:8,textTransform:'uppercase'}}>COED Cantón Guadalupe La Zorra</div>
+                <div style={{color:'#ffffff',fontSize:15,fontWeight:700,lineHeight:1.15,letterSpacing:'0.02em',textShadow:'0 2px 8px rgba(0,0,0,0.2)'}}>CARNET DE REGISTRO</div>
+                <div style={{color:'#ffffff',fontSize:15,fontWeight:700,lineHeight:1.15,letterSpacing:'0.02em',textShadow:'0 2px 8px rgba(0,0,0,0.2)'}}>DE ASISTENCIA</div>
+              </div>
+              {/* Cuerpo */}
+              <div style={{background:'#ffffff',padding:'20px 22px 0'}}>
+                <div style={{display:'flex',gap:16,marginBottom:18}}>
+                  <div style={{flexShrink:0}}>
+                    <div style={{width:96,height:96,borderRadius:'50%',border:`4px solid ${azulClaro}`,background:azulPastel,overflow:'hidden',boxShadow:`0 0 0 2px ${azulPastel},0 4px 16px rgba(42,82,152,0.18)`,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                      {alumno.fotoPerfil
+                        ? <img src={alumno.fotoPerfil} alt="" crossOrigin="anonymous" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+                        : <User size={36} style={{color:azulClaro}}/>
+                      }
+                    </div>
+                  </div>
+                  <div style={{flex:1,display:'flex',flexDirection:'column',gap:7,justifyContent:'center'}}>
+                    {campos.map(({icon,label,valor})=>(
+                      <div key={label} style={{display:'flex',alignItems:'flex-start',gap:6}}>
+                        <div style={{flexShrink:0,marginTop:1}}>{icon}</div>
+                        <div>
+                          <div style={{color:grisLabel,fontSize:9,fontWeight:700,lineHeight:1,letterSpacing:'0.04em'}}>{label}</div>
+                          <div style={{color:grisTexto,fontSize:11,fontWeight:700,lineHeight:1.3,maxWidth:180,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{valor||'—'}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {/* Footer QR */}
+              <div style={{background:`linear-gradient(135deg,${azulOscuro} 0%,${azulMedio} 100%)`,padding:'14px 20px',display:'flex',alignItems:'center',gap:14}}>
+                {qrDataUrl && (
+                  <div style={{background:'#ffffff',padding:5,borderRadius:8,border:'2px solid rgba(255,255,255,0.3)',flexShrink:0}}>
+                    <img src={qrDataUrl} alt="QR" style={{width:70,height:70,display:'block'}}/>
+                  </div>
+                )}
+                <div style={{flex:1}}>
+                  <div style={{color:'rgba(255,255,255,0.6)',fontSize:8,letterSpacing:'0.1em',marginBottom:4}}>CÓDIGO DE ASISTENCIA</div>
+                  <div style={{color:'#ffffff',fontSize:11,fontWeight:800,letterSpacing:'0.06em',wordBreak:'break-all',marginBottom:8}}>{alumno.codigoQR}</div>
+                  <div style={{borderTop:'1px solid rgba(255,255,255,0.2)',paddingTop:6}}>
+                    <div style={{color:'#ffffff',fontSize:10,fontWeight:800,letterSpacing:'0.06em'}}>USO INSTITUCIONAL</div>
+                    <div style={{color:'rgba(255,255,255,0.65)',fontSize:9}}>Válido hasta: Diciembre {new Date().getFullYear()}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Botones */}
+            <div style={{display:'flex',gap:10}}>
+              <button onClick={descargar}
+                style={{background:'#2a5298',border:'none',borderRadius:12,padding:'11px 22px',color:'#fff',fontWeight:700,fontFamily:mono,fontSize:13,cursor:'pointer',display:'flex',alignItems:'center',gap:7}}>
+                <Download size={15}/> Descargar carnet
+              </button>
+              <button onClick={onClose}
+                style={{background:'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.3)',borderRadius:12,padding:'11px 18px',color:'#fff',fontFamily:mono,fontSize:13,cursor:'pointer',backdropFilter:'blur(4px)'}}>
+                Cerrar
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   )
 }
@@ -348,7 +514,7 @@ function ModalNuevoAlumno({ onClose, onCreated, toast }) {
   )
 }
 
-function ModalHistorial({ alumno, onClose, logic, onUpdateAlumno }) {
+function ModalHistorial({ alumno, onClose, logic, onUpdateAlumno, onVerCarnet }) {
   const [historial,setHistorial] = useState([])
   const [loading,setLoading]     = useState(true)
   const [error,setError]         = useState(null)
@@ -386,7 +552,14 @@ function ModalHistorial({ alumno, onClose, logic, onUpdateAlumno }) {
                 <h3 style={{fontFamily:disp,fontSize:19,color:C.text,fontWeight:800,marginBottom:2}}>{alumno.nombre} {alumno.apellido||''}</h3>
                 <div style={{color:C.blue,fontSize:11,fontFamily:mono,fontWeight:700,marginBottom:8}}>NIE: {alumno.nie||alumno.uid}</div>
               </div>
-              <button onClick={onClose} style={{background:'none',border:'none',color:C.faint,fontSize:22,cursor:'pointer'}}>×</button>
+              <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                <button onClick={()=>{ onClose(); setTimeout(()=>onVerCarnet&&onVerCarnet(alumno),50) }}
+                  title="Ver e imprimir carnet"
+                  style={{background:C.blueBg,border:`1px solid ${C.blueBorder}`,borderRadius:8,padding:'5px 10px',color:C.blue,cursor:'pointer',display:'flex',alignItems:'center',gap:5,fontFamily:mono,fontSize:11,fontWeight:700}}>
+                  <CreditCard size={12}/> Carnet
+                </button>
+                <button onClick={onClose} style={{background:'none',border:'none',color:C.faint,fontSize:22,cursor:'pointer'}}>×</button>
+              </div>
             </div>
             <div style={{display:'flex',flexDirection:'column',gap:3}}>
               {alumno.carrera&&<div style={{display:'flex',alignItems:'center',gap:6,color:C.muted,fontSize:12}}><BookOpen size={11}/>{alumno.carrera}{alumno.ciclo?` · ${alumno.ciclo}`:''}</div>}
@@ -484,6 +657,7 @@ export default function AdminPage({ toast }) {
   const [alumnoSel,setAlumnoSel]             = useState(null)
   const [generandoPDF,setGenerandoPDF]       = useState(false)
   const [editarDia,setEditarDia]             = useState(null)  // {alumno,diaNum,diaLabel,registro}
+  const [verCarnet,setVerCarnet]             = useState(null)   // alumno
 
   const ahora     = new Date()
   const weekStart = logic.getWeekStart(ahora)
@@ -544,7 +718,7 @@ export default function AdminPage({ toast }) {
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap',gap:12,marginBottom:28}}>
         <div>
           <div style={{display:'inline-block',background:C.blueBg,border:`1px solid ${C.blueBorder}`,borderRadius:6,padding:'3px 10px',fontSize:10,color:C.blue,fontFamily:mono,fontWeight:700,letterSpacing:'0.06em',marginBottom:10}}>PANEL DE ADMINISTRACIÓN</div>
-          <h2 style={{fontFamily:disp,fontSize:26,fontWeight:600,color:C.text,marginBottom:4}}>Control de Prácticas</h2>
+          <h2 style={{fontFamily:disp,fontSize:26,fontWeight:800,color:C.text,marginBottom:4}}>Control de Prácticas</h2>
           <div style={{color:C.muted,fontSize:12,fontFamily:mono}}>Semana: {format(weekStart,"d MMM",{locale:es})} – {format(addDays(weekEnd,-1),"d MMM yyyy",{locale:es})}</div>
         </div>
         <div style={{display:'flex',gap:8}}>
@@ -596,7 +770,8 @@ export default function AdminPage({ toast }) {
         </div>
       ) : (
         <TablaAlumnos alumnos={alumnos} asistenciasPorAlumno={asistenciasPorAlumno} logic={logic} onSelectAlumno={setAlumnoSel} onDelete={handleDelete} onUpdateAlumno={handleUpdateAlumno}
-          onEditarDia={(alumno,diaNum,diaLabel,registro)=>setEditarDia({alumno,diaNum,diaLabel,registro})}/>
+          onEditarDia={(alumno,diaNum,diaLabel,registro)=>setEditarDia({alumno,diaNum,diaLabel,registro})}
+          onVerCarnet={setVerCarnet}/>
       )}
 
       {!loading&&alumnos.length>0&&(
@@ -612,8 +787,9 @@ export default function AdminPage({ toast }) {
       )}
 
       {showModal&&<ModalNuevoAlumno onClose={()=>setShowModal(false)} onCreated={cargarDatos} toast={toast}/>}
-      {alumnoSel&&<ModalHistorial alumno={alumnoSel} onClose={()=>setAlumnoSel(null)} logic={logic} onUpdateAlumno={handleUpdateAlumno}/>}
+      {alumnoSel&&<ModalHistorial alumno={alumnoSel} onClose={()=>setAlumnoSel(null)} logic={logic} onUpdateAlumno={handleUpdateAlumno} onVerCarnet={setVerCarnet}/>}
       {editarDia&&<ModalEditarDia alumno={editarDia.alumno} diaNum={editarDia.diaNum} diaLabel={editarDia.diaLabel} registro={editarDia.registro} onClose={()=>setEditarDia(null)} onSaved={cargarDatos} toast={toast}/>}
+      {verCarnet&&<ModalCarnet alumno={verCarnet} onClose={()=>setVerCarnet(null)}/>}
     </div>
   )
 }
